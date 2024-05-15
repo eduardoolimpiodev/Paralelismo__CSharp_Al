@@ -46,27 +46,16 @@ namespace ByteBank.View
             var contas_parte3 = contas.Skip(contasQuantidadePorThread*2).Take(contasQuantidadePorThread);
             var contas_parte4 = contas.Skip(contasQuantidadePorThread*3);
 
-            var resultado = new List<string>();
-
             AtualizarView(new List<string>(), TimeSpan.Zero);
 
             var inicio = DateTime.Now;
 
-            var contasTarefa = contas.Select(conta =>
-            {
-                return Task.Factory.StartNew(() =>
-                {
-                    var resultadoConta = r_Servico.ConsolidarMovimentacao(conta);
-                    resultado.Add(resultadoConta);
-                });
-            }).ToArray();
 
-            
-
-            Task.WhenAll(contasTarefa)
+           ConsolidarContas(contas)
                 .ContinueWith(task =>
                 {
                     var fim = DateTime.Now;
+                    var resultado = task.Result;
 
                     AtualizarView(resultado, fim - inicio);
                 }, taskSchedulerUI)
@@ -76,6 +65,29 @@ namespace ByteBank.View
             
             
         }
+
+        private Task<List<string>> ConsolidarContas(IEnumerable<ContaCliente> contas)
+        {
+            var resultado = new List<string>();
+
+            var tasks = contas.Select(conta =>
+            {
+                return Task.Factory.StartNew(() =>
+                {
+                    var contaResultado = r_Servico.ConsolidarMovimentacao(conta);
+                    resultado.Add(contaResultado);
+                });
+            });
+
+            return Task.WhenAll(tasks).ContinueWith(t =>
+            {
+
+                return resultado;
+
+            });
+
+        }
+            
 
         private void AtualizarView(List<String> result, TimeSpan elapsedTime)
         {
